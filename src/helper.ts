@@ -26,3 +26,39 @@ export const CheckWebGPU = () => {
   }
   return result;
 };
+
+export const CreateGPUBuffer = (
+  device: GPUDevice,
+  data: Float32Array,
+  usageFlag: GPUBufferUsageFlags = GPUBufferUsage.VERTEX |
+    GPUBufferUsage.COPY_DST
+) => {
+  const buffer = device.createBuffer({
+    size: data.byteLength,
+    usage: usageFlag,
+    mappedAtCreation: true,
+  });
+  new Float32Array(buffer.getMappedRange()).set(data);
+  buffer.unmap();
+  return buffer;
+};
+
+export const InitGPU = async () => {
+  const checkgpu = CheckWebGPU();
+  if (checkgpu.includes("Your current browser does not support WebGPU!")) {
+    console.log(checkgpu);
+    throw "Your current browser does not support WebGPU!";
+  }
+  const canvas = document.getElementById("canvas-webgpu") as HTMLCanvasElement;
+  const adapter = await navigator.gpu?.requestAdapter();
+  const device = (await adapter?.requestDevice()) as GPUDevice;
+  const context = canvas.getContext("webgpu") as unknown as GPUCanvasContext;
+  const format = navigator.gpu.getPreferredCanvasFormat();
+
+  context.configure({
+    device: device,
+    format: format,
+    alphaMode: "opaque",
+  });
+  return { device, canvas, format, context };
+};
