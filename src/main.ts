@@ -1,51 +1,23 @@
-import { InitGPU, CreateGPUBuffer } from "./helper";
+import {
+  InitGPU,
+  CreateGPUBuffer,
+  CreateTransforms,
+  CreateViewProjection,
+} from "./helper";
 import shader from "./shader.wgsl";
 import "./site.css";
+import { CubeData } from "./vertex-data";
+import { mat4 } from "gl-matrix";
 
-const CreateSquare = async () => {
+const Create3DObject = async () => {
   const gpu = await InitGPU();
   const device = gpu.device;
 
-  // a, b, c, d are the square vertices ccw where a is the bottom-right vertex
-  // we use those to define two triangles
-  const vertexData = new Float32Array([
-    -0.5,
-    -0.5, // vertex a
-    0.5,
-    -0.5, // vertex b
-    -0.5,
-    0.5, // vertex d
-    -0.5,
-    0.5, // vertex d
-    0.5,
-    -0.5, // vertex b
-    0.5,
-    0.5, // vertex c
-  ]);
-
-  const colorData = new Float32Array([
-    1,
-    0,
-    0, // vertex a: red
-    0,
-    1,
-    0, // vertex b: green
-    1,
-    1,
-    0, // vertex d: yellow
-    1,
-    1,
-    0, // vertex d: yellow
-    0,
-    1,
-    0, // vertex b: green
-    0,
-    0,
-    1, // vertex c: blue
-  ]);
-
-  const vertexBuffer = CreateGPUBuffer(device, vertexData);
-  const colorBuffer = CreateGPUBuffer(device, colorData);
+  // create vertex buffers
+  const cubeData = CubeData();
+  const numberOfVertices = cubeData.positions.length / 3;
+  const vertexBuffer = CreateGPUBuffer(device, cubeData.positions);
+  const colorBuffer = CreateGPUBuffer(device, cubeData.colors);
 
   const pipeline = device.createRenderPipeline({
     layout: "auto",
@@ -56,19 +28,16 @@ const CreateSquare = async () => {
       entryPoint: "vs_main",
       buffers: [
         {
-          // Each vertex coord is represented with a 32bit value. Since
-          // we have 2 coords per vertex, the vertex stride is 8 bytes
-          arrayStride: 8,
+          arrayStride: 12,
           attributes: [
             {
               shaderLocation: 0,
-              format: "float32x2",
+              format: "float32x3",
               offset: 0,
             },
           ],
         },
         {
-          // Each vertex color is represented with 3 32bit values.
           arrayStride: 12,
           attributes: [
             {
@@ -93,12 +62,49 @@ const CreateSquare = async () => {
     },
     primitive: {
       topology: "triangle-list",
+      cullMode: "back",
+    },
+    depthStencil: {
+      format: "depth24plus",
+      depthWriteEnabled: true,
+      depthCompare: "less",
     },
   });
 
-  const commandEncoder = device.createCommandEncoder();
+  // create uniform data
+  const modelMatrix = mat4.create();
+  const mvpMatrix = mat4.create();
+  let vpMatrix = mat4.create();
+  const vp = CreateViewProjection(gpu.canvas.width / gpu.canvas.height);
+  vpMatrix = vp.viewProjectionMatrix;
+
+  // create uniform buffer and bind group
+  const uniformBuffer = device.createBuffer({
+    size: 64,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  const uniformBindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: uniformBuffer,
+          offset: 0,
+          size: 64,
+        },
+      },
+    ],
+  });
+
   const textureView = gpu.context.getCurrentTexture().createView();
-  const renderPass = commandEncoder.beginRenderPass({
+  const depthTexture = device.createTexture({
+    size: [gpu.canvas.width, gpu.canvas.height, 1],
+    format: "depth24plus",
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  const renderPassDescription = {
     colorAttachments: [
       {
         view: textureView,
@@ -107,18 +113,35 @@ const CreateSquare = async () => {
         storeOp: "store",
       },
     ],
-  });
+    depthStencilAttachment: {
+      view: depthTexture.createView(),
+      depthLoadValue: 1.0,
+      depthClearValue: 1.0,
+      depthLoadOp: "clear",
+      depthStoreOp: "store",
+    },
+  };
+
+  CreateTransforms(modelMatrix);
+  mat4.multiply(mvpMatrix, vpMatrix, modelMatrix);
+  device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as ArrayBuffer);
+
+  const commandEncoder = device.createCommandEncoder();
+  const renderPass = commandEncoder.beginRenderPass(
+    renderPassDescription as GPURenderPassDescriptor
+  );
   renderPass.setPipeline(pipeline);
   renderPass.setVertexBuffer(0, vertexBuffer);
   renderPass.setVertexBuffer(1, colorBuffer);
-  renderPass.draw(6);
+  renderPass.setBindGroup(0, uniformBindGroup);
+  renderPass.draw(numberOfVertices);
   renderPass.end();
 
   device.queue.submit([commandEncoder.finish()]);
 };
 
-CreateSquare();
+Create3DObject();
 
 window.addEventListener("resize", function () {
-  CreateSquare();
+  Create3DObject();
 });

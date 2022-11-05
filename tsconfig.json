@@ -5,7 +5,7 @@
     "target": "es6",
     "lib": ["es2017", "dom"],
     "types": ["node", "@webgpu/types"],
-    "module": "es2015",
+    "module": "CommonJS",
     "esModuleInterop": true,
     "strict": true,
     "sourceMap": true
