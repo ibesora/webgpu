@@ -4,7 +4,7 @@
     "outDir": "dist",
     "target": "es6",
     "lib": ["es2017", "dom"],
-    "types": ["node", "@webgpu/types"],
+    "types": ["node", "@webgpu/types", "jquery"],
     "module": "CommonJS",
     "esModuleInterop": true,
     "strict": true,
