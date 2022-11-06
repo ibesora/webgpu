@@ -92,8 +92,8 @@ export const CreateTransforms = (
 };
 
 export const CreateViewProjection = (
-  respectRatio = 1.0,
-  cameraPosition: vec3 = [2, 2, 4],
+  aspectRatio = 1.0,
+  cameraPosition: vec3 = [2, 2, -2],
   lookDirection: vec3 = [0, 0, 0],
   upDirection: vec3 = [0, 1, 0]
 ) => {
@@ -103,7 +103,7 @@ export const CreateViewProjection = (
   mat4.perspective(
     projectionMatrix,
     (2 * Math.PI) / 5,
-    respectRatio,
+    aspectRatio,
     0.1,
     100.0
   );

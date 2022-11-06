@@ -1,18 +1,19 @@
-import { CreateShapeWithLight, LightInputs } from "./light";
-import { CubeData } from "./vertex-data";
+import { LightInputs, VertexLight } from "./light";
+import { GridData } from "./vertex-data";
 import $ from "jquery";
 import "./site.css";
 
-const data = CubeData();
+const cells = 100;
+const data = GridData(cells, cells);
 let li: LightInputs = {};
 let isAnimation = true;
-CreateShapeWithLight(data.positions, data.normals, li, isAnimation);
+VertexLight(data.positions, li, isAnimation);
 
 $("#id-radio input:radio").on("click", function () {
   let val = $('input[name="options"]:checked').val();
   if (val === "animation") isAnimation = true;
   else isAnimation = false;
-  CreateShapeWithLight(data.positions, data.normals, li, isAnimation);
+  VertexLight(data.positions, li, isAnimation);
 });
 
 $("#btn-redraw").on("click", function () {
@@ -26,9 +27,9 @@ $("#btn-redraw").on("click", function () {
     ?.toString()
     ?.split(",")
     .map(Number) as any;
-  CreateShapeWithLight(data.positions, data.normals, li, isAnimation);
+  VertexLight(data.positions, li, isAnimation);
 });
 
 window.addEventListener("resize", function () {
-  CreateShapeWithLight(data.positions, data.normals, li, isAnimation);
+  VertexLight(data.positions, li, isAnimation);
 });

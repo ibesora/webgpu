@@ -418,3 +418,23 @@ export const CubeData = () => {
     normals,
   };
 };
+
+export const GridData = (width: number, depth: number) => {
+  const vertexPositions = [];
+  for (let vx = 0; vx < width; vx++) {
+    for (let vz = 0; vz < depth; vz++) {
+      vertexPositions.push(vx, 0, vz);
+      vertexPositions.push(vx + 1, 0, vz);
+      vertexPositions.push(vx + 1, 0, vz + 1);
+      vertexPositions.push(vx + 1, 0, vz + 1);
+      vertexPositions.push(vx, 0, vz + 1);
+      vertexPositions.push(vx, 0, vz);
+    }
+  }
+
+  const positions = new Float32Array(vertexPositions);
+
+  return {
+    positions,
+  };
+};
