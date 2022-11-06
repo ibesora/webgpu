@@ -3,17 +3,17 @@ import { GridData } from "./vertex-data";
 import $ from "jquery";
 import "./site.css";
 
-const cells = 100;
+const cells = 1000;
 const data = GridData(cells, cells);
 let li: LightInputs = {};
 let isAnimation = true;
-VertexLight(data.positions, li, isAnimation);
+VertexLight(data.positions, data.uv, li, isAnimation);
 
 $("#id-radio input:radio").on("click", function () {
   let val = $('input[name="options"]:checked').val();
   if (val === "animation") isAnimation = true;
   else isAnimation = false;
-  VertexLight(data.positions, li, isAnimation);
+  VertexLight(data.positions, data.uv, li, isAnimation);
 });
 
 $("#btn-redraw").on("click", function () {
@@ -27,9 +27,9 @@ $("#btn-redraw").on("click", function () {
     ?.toString()
     ?.split(",")
     .map(Number) as any;
-  VertexLight(data.positions, li, isAnimation);
+  VertexLight(data.positions, data.uv, li, isAnimation);
 });
 
 window.addEventListener("resize", function () {
-  VertexLight(data.positions, li, isAnimation);
+  VertexLight(data.positions, data.uv, li, isAnimation);
 });

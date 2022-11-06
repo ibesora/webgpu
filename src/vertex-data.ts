@@ -421,20 +421,34 @@ export const CubeData = () => {
 
 export const GridData = (width: number, depth: number) => {
   const vertexPositions = [];
+  const vertexUV = [];
+  const offset = width / 2;
   for (let vx = 0; vx < width; vx++) {
     for (let vz = 0; vz < depth; vz++) {
-      vertexPositions.push(vx, 0, vz);
-      vertexPositions.push(vx + 1, 0, vz);
-      vertexPositions.push(vx + 1, 0, vz + 1);
-      vertexPositions.push(vx + 1, 0, vz + 1);
-      vertexPositions.push(vx, 0, vz + 1);
-      vertexPositions.push(vx, 0, vz);
+      const startU = vx / width;
+      const startV = vz / depth;
+      const endU = (vx + 1) / width;
+      const endV = (vz + 1) / depth;
+      vertexPositions.push(vx - offset, 0, vz - offset);
+      vertexUV.push(startU, startV);
+      vertexPositions.push(vx + 1 - offset, 0, vz - offset);
+      vertexUV.push(endU, startV);
+      vertexPositions.push(vx + 1 - offset, 0, vz + 1 - offset);
+      vertexUV.push(endU, endV);
+      vertexPositions.push(vx + 1 - offset, 0, vz + 1 - offset);
+      vertexUV.push(endU, endV);
+      vertexPositions.push(vx - offset, 0, vz + 1 - offset);
+      vertexUV.push(startU, endV);
+      vertexPositions.push(vx - offset, 0, vz - offset);
+      vertexUV.push(startU, startV);
     }
   }
 
   const positions = new Float32Array(vertexPositions);
+  const uv = new Float32Array(vertexUV);
 
   return {
     positions,
+    uv,
   };
 };

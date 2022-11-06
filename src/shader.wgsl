@@ -12,18 +12,6 @@ struct Output {
     @location(1) v_normal : vec4<f32>,
 };
 
-@vertex
-fn vs_main(@location(0) pos: vec4<f32>) -> Output {    
-    var output: Output;            
-    let m_position:vec4<f32> = uniforms.model_mat * pos; 
-    output.v_position = m_position;                  
-    output.v_normal =  vec4(0.0, 1.0, 0.0, 1.0);
-    output.position = uniforms.view_project_mat * m_position;               
-    return output;
-}
-
-// fragment shader 
-
 struct FragUniforms {
     light_position : vec4<f32>,
     eye_position : vec4<f32>,
@@ -36,6 +24,28 @@ struct LightUniforms {
     params: vec4<f32>, // ambient_intensity, diffuse_intensity, specular_intensity, specular_shininess
 };
 @binding(2) @group(0) var<uniform> light_uniforms : LightUniforms;
+@binding(3) @group(0) var mySampler : sampler;
+@binding(4) @group(0) var texture : texture_2d<f32>;
+
+@vertex
+fn vs_main(@location(0) pos: vec4<f32>, @location(1) uv: vec2<f32>) -> Output {    
+    var output: Output;
+    //Vec3(2*(R-L), 2*(B-T), -4)
+    const epsilon = 0.01;
+    const heightModifier = 1000.0;
+    let r = textureSampleLevel(texture, mySampler, uv + vec2(epsilon, 0.0), 0.0) * heightModifier;
+    let l = textureSampleLevel(texture, mySampler, uv + vec2(-epsilon, 0.0), 0.0) * heightModifier;
+    let t = textureSampleLevel(texture, mySampler, uv + vec2(0.0, -epsilon), 0.0) * heightModifier;
+    let b = textureSampleLevel(texture, mySampler, uv + vec2(0.0, epsilon), 0.0) * heightModifier;
+    let texColor = textureSampleLevel(texture, mySampler, uv, 0.0);
+    let m_position:vec4<f32> = uniforms.model_mat * vec4(pos.x, texColor.r * heightModifier, pos.z, 1.0); 
+    output.v_position = m_position;
+    output.v_normal =  normalize(vec4(2*(r.r - l.r), 2*(b.r - t.r), -4, 1.0));
+    output.position = uniforms.view_project_mat * m_position;               
+    return output;
+}
+
+// fragment shader 
 
 @fragment
 fn fs_main(@location(0) v_position: vec4<f32>, @location(1) v_normal: vec4<f32>) ->  @location(0) vec4<f32> {

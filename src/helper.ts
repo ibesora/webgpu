@@ -93,7 +93,7 @@ export const CreateTransforms = (
 
 export const CreateViewProjection = (
   aspectRatio = 1.0,
-  cameraPosition: vec3 = [2, 2, -2],
+  cameraPosition: vec3 = [0, 1500, -500],
   lookDirection: vec3 = [0, 0, 0],
   upDirection: vec3 = [0, 1, 0]
 ) => {
@@ -105,7 +105,7 @@ export const CreateViewProjection = (
     (2 * Math.PI) / 5,
     aspectRatio,
     0.1,
-    100.0
+    Infinity
   );
 
   mat4.lookAt(viewMatrix, cameraPosition, lookDirection, upDirection);
@@ -149,9 +149,9 @@ export const CreateAnimation = (
 ) => {
   function step() {
     if (isAnimation) {
-      rotation[0] += 0.01;
+      rotation[0] += 0.0;
       rotation[1] += 0.01;
-      rotation[2] += 0.01;
+      rotation[2] += 0.0;
     } else {
       rotation = [0, 0, 0];
     }
@@ -160,3 +160,49 @@ export const CreateAnimation = (
   }
   requestAnimationFrame(step);
 };
+
+export async function webGPUTextureFromImageElement(
+  gpuDevice: GPUDevice,
+  imgElement: HTMLImageElement
+) {
+  if (imgElement.complete) {
+    const imgBitmap = await createImageBitmap(imgElement);
+    return await webGPUTextureFromImageBitmapOrCanvas(gpuDevice, imgBitmap);
+  } else {
+    // If the image isn't loaded yet we'll wrap the load/error events in a promise to keep the
+    // function interface consistent.
+    return new Promise((_, reject) => {
+      imgElement.addEventListener("load", async () => {
+        const imgBitmap = await createImageBitmap(imgElement);
+        return await webGPUTextureFromImageBitmapOrCanvas(gpuDevice, imgBitmap);
+      });
+      imgElement.addEventListener("error", reject);
+    });
+  }
+}
+
+function webGPUTextureFromImageBitmapOrCanvas(
+  gpuDevice: GPUDevice,
+  source: ImageBitmap
+) {
+  const textureDescriptor = {
+    // Unlike in WebGL, the size of our texture must be set at texture creation time.
+    // This means we have to wait until the image is loaded to create the texture, since we won't
+    // know the size until then.
+    size: { width: source.width, height: source.height },
+    format: "rgba8unorm" as GPUTextureFormat,
+    usage:
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.RENDER_ATTACHMENT,
+  };
+  const texture = gpuDevice.createTexture(textureDescriptor);
+
+  gpuDevice.queue.copyExternalImageToTexture(
+    { source },
+    { texture },
+    textureDescriptor.size
+  );
+
+  return texture;
+}

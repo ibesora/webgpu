@@ -5,6 +5,7 @@ import {
   CreateViewProjection,
   CreateAnimation,
   CreateGPUBufferUint,
+  webGPUTextureFromImageElement,
 } from "./helper";
 import shader from "./shader.wgsl";
 import { vec3, vec4, mat4 } from "gl-matrix";
@@ -300,6 +301,7 @@ export const CreateShapeWithLight = async (
 
 export const VertexLight = async (
   vertexData: Float32Array,
+  uvData: Float32Array,
   li: LightInputs,
   isAnimation = true
 ) => {
@@ -325,6 +327,8 @@ export const VertexLight = async (
     vertexData,
     GPUBufferUsage.VERTEX
   );
+
+  const uvBuffer = CreateGPUBuffer(device, uvData, GPUBufferUsage.VERTEX);
 
   // create uniform data
   const modelMatrix = mat4.create();
@@ -385,66 +389,18 @@ export const VertexLight = async (
     new Float32Array(lightParams.flat())
   );
 
-  const uniformBindGroupLayout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {
-          type: "uniform",
-        },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: {
-          type: "uniform",
-        },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: {
-          type: "uniform",
-        },
-      },
-    ],
+  const sampler = device.createSampler({
+    magFilter: "linear",
+    minFilter: "linear",
   });
 
-  const uniformBindGroup = device.createBindGroup({
-    layout: uniformBindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: vertexUniformBuffer,
-          offset: 0,
-          size: 128,
-        },
-      },
-      {
-        binding: 1,
-        resource: {
-          buffer: fragmentUniformBuffer,
-          offset: 0,
-          size: 32,
-        },
-      },
-      {
-        binding: 2,
-        resource: {
-          buffer: lightUniformBuffer,
-          offset: 0,
-          size: 48,
-        },
-      },
-    ],
-  });
+  const texture = (await webGPUTextureFromImageElement(
+    device,
+    document.getElementById("image") as HTMLImageElement
+  )) as GPUTexture;
 
   const pipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [uniformBindGroupLayout],
-    }),
+    layout: "auto",
     vertex: {
       module: device.createShaderModule({
         code: shader,
@@ -457,6 +413,16 @@ export const VertexLight = async (
             {
               shaderLocation: 0,
               format: "float32x3",
+              offset: 0,
+            },
+          ],
+        },
+        {
+          arrayStride: 8,
+          attributes: [
+            {
+              shaderLocation: 1,
+              format: "float32x2",
               offset: 0,
             },
           ],
@@ -482,6 +448,44 @@ export const VertexLight = async (
       depthWriteEnabled: true,
       depthCompare: "less",
     },
+  });
+
+  const uniformBindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: vertexUniformBuffer,
+          offset: 0,
+          size: 128,
+        },
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: fragmentUniformBuffer,
+          offset: 0,
+          size: 32,
+        },
+      },
+      {
+        binding: 2,
+        resource: {
+          buffer: lightUniformBuffer,
+          offset: 0,
+          size: 48,
+        },
+      },
+      {
+        binding: 3,
+        resource: sampler,
+      },
+      {
+        binding: 4,
+        resource: texture.createView(),
+      },
+    ],
   });
 
   let textureView = gpu.context.getCurrentTexture().createView();
@@ -544,6 +548,7 @@ export const VertexLight = async (
 
     renderPass.setPipeline(pipeline);
     renderPass.setVertexBuffer(0, vertexBuffer);
+    renderPass.setVertexBuffer(1, uvBuffer);
     renderPass.setBindGroup(0, uniformBindGroup);
     renderPass.draw(numberOfVertices);
     renderPass.end();
